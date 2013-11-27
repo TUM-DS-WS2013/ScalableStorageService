@@ -1,0 +1,10 @@
+nbproject
+
+*.class
+*.log
+
+# Package Files #
+bin
+ms3-*.jar
+*.MF
+
