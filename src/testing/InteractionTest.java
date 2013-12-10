@@ -44,8 +44,8 @@ public class InteractionTest extends TestCase {
 	@Test
 	public void testPutDisconnected() {
 		kvClient.disconnect();
-		String key = "foo";
-		String value = "bar";
+		String key = "foo2";
+		String value = "bar2";
 		Exception ex = null;
 
 		try {
@@ -88,7 +88,7 @@ public class InteractionTest extends TestCase {
 
 		try {
 			kvClient.put(key, value);
-			response = kvClient.put(key, "null");
+			response = kvClient.put(key, null);
 			
 		} catch (Exception e) {
 			ex = e;
@@ -99,8 +99,8 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testGet() {
-		String key = "foo";
-		String value = "bar";
+		String key = "foo3";
+		String value = "bar3";
 		KVMessage response = null;
 		Exception ex = null;
 
@@ -111,7 +111,7 @@ public class InteractionTest extends TestCase {
 				ex = e;
 			}
 		
-		assertTrue(ex == null && response.getValue().equals("bar"));
+		assertTrue(ex == null && response.getValue().equals("bar3"));
 	}
 
 	@Test
