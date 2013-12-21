@@ -6,8 +6,10 @@ import logger.LogSetup;
 import org.apache.log4j.Logger;
 import org.apache.log4j.Level;
 import common.messages.KVMessage;
+import common.parsers.ArgumentParser;
 import common.parsers.CommandParser;
 import common.parsers.CommandParser.Command;
+import common.topology.ServerAddress;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.text.ParseException;
@@ -28,8 +30,59 @@ public class KVClient {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        Level   log_level = Level.WARN;
+        String  ip_address = null;
+        Integer port = null;
+        
+        // Parse command line arguments
         try {
-            LogSetup.initialize("logs/client/client.log", Level.WARN);
+            ArgumentParser parser = new ArgumentParser("hl:", args);
+            ArgumentParser.Option option;
+            
+            while ((option = parser.getNextArgument()) != null) {
+                if (option.name == null) { // Positional arguments go here
+                    if (ip_address == null) {
+                        ip_address = option.argument;
+                        if (!ServerAddress.validateIPv4Address(ip_address)) {
+                            throw new ParseException("Invalid IP address: " + option.argument + ".", 0);
+                        }
+                    } else if (port == null) {
+                        try {
+                            port = Integer.parseInt(option.argument);
+                        } catch (NumberFormatException e) {}
+                        if (port == null || !ServerAddress.validatePortNumber(port)) {
+                            throw new ParseException("Invalid port number: " + option.argument + ".", 0);
+                        }
+                    } else {
+                        throw new ParseException("Excess positional argument: " + option.argument + ".", 0);
+                    }
+                    
+                } else if (option.name.equals("h")) {
+                    System.out.println(
+                            "Usage: KVClient [-l log_level] [ip_address port]\n" +
+                            "    -l log_level    - Set logging level (default: WARN).\n" +
+                            "    port            - IP address for initial connection.\n" +
+                            "    port            - Port number for initial connection."
+                      );
+                    System.exit(1);
+                    
+                } else if (option.name.equals("l")) {
+                    if (LogSetup.isValidLevel(option.argument)) {
+                        log_level = Level.toLevel(option.argument);
+                    } else {
+                        throw new ParseException("Invalid logging level: " + option.argument + ".", 0);
+                    }
+                }
+            }
+            
+        } catch (ParseException e) {
+            System.out.println("Error parsing command line arguments: " + e.getMessage());
+            System.exit(1);
+        }
+        
+        // Initializing logger
+        try {
+            LogSetup.initialize("logs/client/client.log", log_level);
         } catch (IOException e) {
             System.out.println("Error! Unable to initialize logger: " + e.getMessage());
             System.exit(1);
@@ -38,6 +91,10 @@ public class KVClient {
         try {
             KVClient client = new KVClient();
             CommandParser parser = initializeCommandParser();
+            
+            if (ip_address != null && port != null) {
+                System.out.println(client.ProcessCommand(parser.parseString("connect " + ip_address + " " + port)));
+            }
             
             while (true) {
                 Command command = parser.nextCommand();
@@ -59,13 +116,13 @@ public class KVClient {
      * @return A valid CommandParser object
      */
     private static CommandParser initializeCommandParser() {
-        CommandParser parser = new CommandParser(System.in, System.out, "EchoClient>");
+        CommandParser parser = new CommandParser(System.in, System.out, "KVClient>");
         
         try {
             parser.addCommand("connect <address> <port>",
                     "Connect to storage service running at <address> on port <port>.");
             parser.addCommand("disconnect", "Disconnect from the storage service.");
-            parser.addCommand("put <key:20> [value...:128000]",
+            parser.addCommand("put <key:20> [value...:122880]",
                     "Store a given <value> for a given <key> in the storage service.");
             parser.addCommand("get <key:20>", "Request a stored value for a given <key> from the storage service.");
             parser.addCommand("logLevel <level>", "Change logging level to <level>.");
@@ -135,7 +192,10 @@ public class KVClient {
                 objKVStoreClient = null;
             }
             logger.error(output);
-        } catch (Exception exception) {
+        } catch (IllegalArgumentException iaexception) {
+            output = "Error! " + iaexception.getMessage();
+            logger.error(output);
+        }catch (Exception exception) {
             output = "Error! Unknown exception: " + exception.getMessage();
             logger.error(output);
         }

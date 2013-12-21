@@ -1,6 +1,8 @@
-package app_kvServer;
+package server;
 
+import common.topology.HashValue;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -48,11 +50,11 @@ public class KVDataStorage {
         // Put (key,value) pair into storage
         String prev_value = null;
         
-        write_lock.lock();
+        this.write_lock.lock();
         try {
-            prev_value = storage.put(key, value);
+            prev_value = this.storage.put(key, value);
         } finally {
-            write_lock.unlock();
+            this.write_lock.unlock();
         }
         
         return prev_value;
@@ -71,11 +73,11 @@ public class KVDataStorage {
         
         String value = null;
         
-        read_lock.lock();
+        this.read_lock.lock();
         try {
-            value = storage.get(key);
+            value = this.storage.get(key);
         } finally {
-            read_lock.unlock();
+            this.read_lock.unlock();
         }
         
         return value;
@@ -94,11 +96,11 @@ public class KVDataStorage {
         
         String deleted_value = null;
         
-        write_lock.lock();
+        this.write_lock.lock();
         try {
-            deleted_value = storage.remove(key);
+            deleted_value = this.storage.remove(key);
         } finally {
-            write_lock.unlock();
+            this.write_lock.unlock();
         }
         
         return deleted_value;
@@ -109,6 +111,48 @@ public class KVDataStorage {
      * @return A string containing all stored key-value data
      */
     public String dump() {
-        return storage.toString();
+        return this.storage.toString();
+    }
+    
+    public KeyValuePacket getPacketForHashRange(HashValue begin, HashValue end) {
+        KeyValuePacket  packet = new KeyValuePacket();
+        
+        this.read_lock.lock();
+        try {
+            for (String key : this.storage.keySet()) {
+                if (HashValue.hashKey(key).isInRange(begin, end)) {
+                    packet.addKeyValuePair(key, this.storage.get(key));
+                }
+            }
+        } finally {
+            this.read_lock.unlock();
+        }
+        
+        return packet;
+    }
+    
+    public void putAllFromKeyValuePacket(KeyValuePacket packet) {
+        this.write_lock.lock();
+        try {
+            for (KeyValuePacket.KeyValuePair kv_pair : packet) {
+                this.storage.put(kv_pair.key, kv_pair.value);
+            }
+        } finally {
+            this.write_lock.unlock();
+        }
+    }
+    
+    public void deleteHashRange(HashValue begin, HashValue end) {
+        this.write_lock.lock();
+        try {
+            for (Iterator<String> it = this.storage.keySet().iterator(); it.hasNext(); ) {
+                String key = it.next();
+                if (HashValue.hashKey(key).isInRange(begin, end)) {
+                    it.remove();
+                }
+            }
+        } finally {
+            this.write_lock.unlock();
+        }
     }
 }

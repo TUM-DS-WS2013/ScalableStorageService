@@ -54,35 +54,46 @@ public class CommandParser {
         
         while (command == null) {
             this.output.print(this.prompt + " ");
-            String[]    input = this.reader.readLine().trim().split("\\s+", 2);
             
-            String      command_name = input[0];
-            String      arguments = (input.length > 1) ? input[1] : "";
+            String  input_string = this.reader.readLine();
             
-            if (command_name.length() == 0) {
-                continue;
-            }
-            
-            MetaCommand meta_command = this.commands.get(command_name);
-            
-            if (meta_command == null) {
-                this.output.println("Error! Command \"" + command_name + "\" is not supported. "
-                        + "Type \"help\" to get list of acceptable commands.");
-                continue;
-            }
-            
-            try {
-                command = meta_command.commandWithArguments(arguments);
-                
-            } catch (ParseException ex) {
-                this.output.println("Error for command \"" + meta_command.name + "\": " + ex.getMessage());
-                command = null;
-            }
-            
-            if ((command != null) && (meta_command == this.help_command)) {
-                this.handleHelpCommand(command);
-                command = null;
-            }
+            command = this.parseString(input_string);
+        }
+        
+        return command;
+    }
+    
+    public Command parseString(String input_string) {
+        Command command;
+        
+        String[]    input = input_string.trim().split("\\s+", 2);
+
+        String      command_name = input[0];
+        String      arguments = (input.length > 1) ? input[1] : "";
+
+        if (command_name.length() == 0) {
+            return null;
+        }
+
+        MetaCommand meta_command = this.commands.get(command_name);
+
+        if (meta_command == null) {
+            this.output.println("Error! Command \"" + command_name + "\" is not supported. "
+                    + "Type \"help\" to get list of acceptable commands.");
+            return null;
+        }
+
+        try {
+            command = meta_command.commandWithArguments(arguments);
+
+        } catch (ParseException ex) {
+            this.output.println("Error for command \"" + meta_command.name + "\": " + ex.getMessage());
+            return null;
+        }
+
+        if ((command != null) && (meta_command == this.help_command)) {
+            this.handleHelpCommand(command);
+            return null;
         }
         
         return command;

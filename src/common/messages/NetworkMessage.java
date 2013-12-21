@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
  * @author Danila Klimenko
  */
 public class NetworkMessage {
-    private static final int    MAX_MESSAGE_SIZE = 128 * 1024;
+    public  static final int    MAX_MESSAGE_SIZE = 128 * 1024;
     private static final int    SIZEOF_LENGTH = 4;
     
     private final int       length;
@@ -70,7 +70,7 @@ public class NetworkMessage {
         
         byte[] data = new byte[length];
         
-        int read_bytes = 0;
+        int read_bytes;
         int total_read_bytes = 0;
         
         while (total_read_bytes < length) {
