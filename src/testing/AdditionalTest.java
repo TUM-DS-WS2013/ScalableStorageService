@@ -2,6 +2,7 @@ package testing;
 
 import client.KVStore;
 import common.messages.KVMessage;
+import common.topology.ServerAddress;
 import static junit.framework.Assert.assertTrue;
 import org.junit.Test;
 
@@ -13,7 +14,8 @@ public class AdditionalTest extends TestCase {
 	
     @Override
     public void setUp() {
-            kvClient = new KVStore("localhost", 50000);
+            ServerAddress   address = AllTests.valid_address;
+	    kvClient = new KVStore(address.getAddress(), address.getPort());
             try {
                     kvClient.connect();
             } catch (Exception e) {

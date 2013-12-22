@@ -260,6 +260,9 @@ public class ServiceNode {
             
             string = reader.readLine();
         }
+        if (nodes.isEmpty()) {
+            throw new ParseException("Configurational file has no valid nodes.", 0);
+        }
         
         return nodes;
     }

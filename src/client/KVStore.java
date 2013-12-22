@@ -27,16 +27,19 @@ public class KVStore implements KVCommInterface {
     private final ServerAddress                         default_server_address;
     private final Map<ServerAddress, ServerConnection>  connections;
     private ServiceMetaData                             meta_data;
+    private boolean                                     online;
     
     public KVStore(String address, int port) {
         this.default_server_address = new ServerAddress(address, port);
         this.connections = new HashMap<ServerAddress, ServerConnection>();
         this.meta_data = null;
+        this.online = false;
     }
 
     @Override
     public void connect() throws Exception {
         this.addConnection(this.default_server_address);
+        this.online = true;
     }
 
     @Override
@@ -45,10 +48,14 @@ public class KVStore implements KVCommInterface {
             connecion.disconnect();
         }
         this.connections.clear();
+        this.online = false;
     }
 
     @Override
     public KVMessage put(String key, String value) throws Exception {
+        if (!this.online) {
+            throw new IOException("Operation 'put' is unavailable while client is offline.");
+        }
         if (key == null) {
             throw new IllegalArgumentException("Key may not be null.");
         }
@@ -57,6 +64,9 @@ public class KVStore implements KVCommInterface {
 
     @Override
     public KVMessage get(String key) throws Exception {
+        if (!this.online) {
+            throw new IOException("Operation 'get' is unavailable while client is offline.");
+        }
         if (key == null) {
             throw new IllegalArgumentException("Key may not be null.");
         }
@@ -130,6 +140,7 @@ public class KVStore implements KVCommInterface {
             }
         }
         if (connection == null || reply == null) {
+            this.online = false;
             throw new IOException("Unable to connect to any of known service nodes.");
         }
         

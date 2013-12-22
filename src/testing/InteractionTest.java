@@ -6,20 +6,24 @@ import client.KVStore;
 import junit.framework.TestCase;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
+import common.topology.ServerAddress;
 
 
 public class InteractionTest extends TestCase {
 
 	private KVStore kvClient;
 	
+        @Override
 	public void setUp() {
-		kvClient = new KVStore("localhost", 50000);
+                ServerAddress   address = AllTests.valid_address;
+		kvClient = new KVStore(address.getAddress(), address.getPort());
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
 		}
 	}
 
+        @Override
 	public void tearDown() {
 		kvClient.disconnect();
 	}

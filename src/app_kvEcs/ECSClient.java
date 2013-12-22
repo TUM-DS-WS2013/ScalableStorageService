@@ -34,7 +34,7 @@ public class ECSClient implements Runnable {
         this.meta_data = null;
     }
     
-    private void initializeNodes(int num_nodes) throws IllegalStateException, IllegalArgumentException, IOException {
+    public void initializeNodes(int num_nodes) throws IllegalStateException, IllegalArgumentException, IOException {
         if (this.state != ServiceState.UNINITIALIZED) {
             throw new IllegalStateException("Service is already initialized.");
         }
@@ -66,7 +66,7 @@ public class ECSClient implements Runnable {
         this.state = ServiceState.STOPPED;
     }
     
-    private void startService() throws IllegalStateException, IOException {
+    public void startService() throws IllegalStateException, IOException {
         if (this.state != ServiceState.STOPPED) {
             throw new IllegalStateException("Service is not initialized or already running.");
         }
@@ -78,7 +78,7 @@ public class ECSClient implements Runnable {
         this.state = ServiceState.RUNNING;
     }
     
-    private void stopService() throws IllegalStateException, IOException {
+    public void stopService() throws IllegalStateException, IOException {
         if (this.state != ServiceState.RUNNING) {
             throw new IllegalStateException("Service is not initialized or already running.");
         }
@@ -90,7 +90,7 @@ public class ECSClient implements Runnable {
         this.state = ServiceState.STOPPED;
     }
     
-    private void shutDownService() throws IllegalStateException, IOException {
+    public void shutDownService() throws IllegalStateException, IOException {
         if (this.state != ServiceState.UNINITIALIZED) {
             for (ServiceNode node : this.active_nodes) {
                 node.shutDown();
@@ -102,7 +102,7 @@ public class ECSClient implements Runnable {
         this.state = ServiceState.UNINITIALIZED;
     }
     
-    private void addNode() throws IOException {
+    public void addNode() throws IOException {
         if (this.state != ServiceState.RUNNING) {
             throw new IllegalStateException("Cannot add a node to an uninitialized or stopped service.");
         }
@@ -134,7 +134,7 @@ public class ECSClient implements Runnable {
         successor_node.unlockWrite();
     }
     
-    private void removeNode() throws IOException {
+    public void removeNode() throws IOException {
         if (this.state != ServiceState.RUNNING) {
             throw new IllegalStateException("Cannot remove a node from an uninitialized or stopped service.");
         }
@@ -182,7 +182,7 @@ public class ECSClient implements Runnable {
         return ret_node;
     }
     
-    private void dumpService() {
+    public void dumpService() {
         if ((this.state != ServiceState.RUNNING) || this.active_nodes.isEmpty()) {
             return;
         }
@@ -215,6 +215,10 @@ public class ECSClient implements Runnable {
                 dump_server.shutDown();
             }
         }
+    }
+    
+    public ServerAddress test_getActiveNodeAddress() {
+        return (this.active_nodes.isEmpty()) ? null : this.active_nodes.get(0).getServerAddress();
     }
     
     @Override
