@@ -1,5 +1,6 @@
 package app_kvEcs;
 
+import app_kvServer.KVServer;
 import common.parsers.ArgumentParser;
 import common.parsers.CommandParser;
 import common.topology.HashValue;
@@ -181,6 +182,41 @@ public class ECSClient implements Runnable {
         return ret_node;
     }
     
+    private void dumpService() {
+        if ((this.state != ServiceState.RUNNING) || this.active_nodes.isEmpty()) {
+            return;
+        }
+        
+        KVServer        dump_server = null;
+        try {
+            ServerAddress   dump_address = new ServerAddress("127.0.0.1" ,65432);
+            dump_server = new KVServer(dump_address.getPort());
+            
+            Thread          dump_server_thread = new Thread(dump_server);
+            dump_server_thread.start();
+            
+            dump_server.startDumpServer();
+            
+            for (ServiceNode node : this.active_nodes) {
+                HashValue[] node_range = this.meta_data.getHashRangeForServer(node.getServerAddress());
+                
+                node.lockWrite();
+                node.moveData(node_range[0], node_range[1], dump_address);
+                node.unlockWrite();
+                
+                System.out.println("Node '" + node.getServerAddress() + "': " + dump_server.getDataStorage().dump());
+                dump_server.getDataStorage().deleteHashRange(node_range[0], node_range[1]);
+            }
+            
+        } catch (IOException ex) {
+            System.out.println("Error! Failed to dump the service: " + ex.getMessage());
+        } finally {
+            if (dump_server != null) {
+                dump_server.shutDown();
+            }
+        }
+    }
+    
     @Override
     public void run() {
         try {
@@ -229,6 +265,8 @@ public class ECSClient implements Runnable {
 
                     } else if (command.name.equals("log")) {
                         System.out.println(LogSetup.setLogLevel(command.arguments.get("level")));
+                    } else if (command.name.equals("dump")) {
+                        this.dumpService();
                     }
                     
                 } catch (IllegalStateException ex) {
@@ -337,6 +375,7 @@ public class ECSClient implements Runnable {
             parser.addCommand("removeNode", "Remove a node from the storage service at an arbitrary position.");
             parser.addCommand("state", "Print out state of service and its nodes.");
             parser.addCommand("log <level>", "Change the logging level to <level>.");
+            parser.addCommand("dump", "Print the contents of every active node in the system.");
             parser.addCommand("quit", "Exit the application.");
             
         } catch (ParseException ex) {

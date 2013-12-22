@@ -63,10 +63,12 @@ public class KVStore implements KVCommInterface {
         return this.processRequest(new KVMessageRaw(KVMessage.StatusType.GET, key, null));
     }
     
-    private void addConnection(ServerAddress server_address) throws IOException {
+    private ServerConnection addConnection(ServerAddress server_address) throws IOException {
         try {
-            this.connections.put(server_address, new ServerConnection(this, server_address));
+            ServerConnection    connection = new ServerConnection(this, server_address);
+            this.connections.put(server_address, connection);
             logger.info("Connected to a new server at '" + server_address + "'.");
+            return connection;
             
         } catch (IOException ex) {
             logger.error("Failed to connect to server '" + server_address + "': " + ex.getMessage());
@@ -78,31 +80,68 @@ public class KVStore implements KVCommInterface {
         return this.connections.get(server_address);
     }
     
+    private ServerConnection getAnyConnection() {
+        return this.connections.isEmpty() ? null : this.connections.values().iterator().next();
+    }
+    
+    private ServerConnection findConnectionForKey(String key) {
+        ServerConnection    connection;
+        
+        try {
+            if (this.meta_data == null) {
+                connection = this.getAnyConnection();
+                if (connection == null) {
+                    connection = this.addConnection(this.default_server_address);
+                }
+                
+            } else {
+                ServerAddress   address = this.meta_data.getServerForKey(key);
+
+                connection = (this.hasConnection(address)) ? this.getConnection(address) : this.addConnection(address);
+            }
+            
+        } catch (IOException ex) { // Failed to connect to the server
+            // Invalidate metadata if any
+            this.meta_data = null;
+            connection = this.getAnyConnection();
+        }
+        
+        return connection;
+    }
+    
     private boolean hasConnection(ServerAddress server_address) {
         return this.connections.containsKey(server_address);
     }
     
     private KVMessageRaw processRequest(KVMessageRaw kvmsg) throws IOException {
-        ServerAddress   address = (this.meta_data != null) ? this.meta_data.getServerForKey(kvmsg.getKey()) :
-                this.default_server_address;
+        ServerConnection    connection = this.findConnectionForKey(kvmsg.getKey());
+        KVMessageRaw        reply = null;
         
-        if (!this.hasConnection(address)) {
-            this.addConnection(address);
+        while (reply == null && connection != null) {
+            try {
+                logger.info("Sending '" + kvmsg.getStatus().name() + "' request with {key='" + kvmsg.getKey() + "'; value='" +
+                        kvmsg.getValue() + "'} to server '" + connection.server_address + "'.");
+                reply = connection.processRequest(kvmsg);
+
+            } catch (IOException ex) { // Connection to server is lost
+                // Try another connection
+                this.connections.remove(connection.server_address);
+                connection = this.findConnectionForKey(kvmsg.getKey());
+            }
+        }
+        if (connection == null || reply == null) {
+            throw new IOException("Unable to connect to any of known service nodes.");
         }
         
-        logger.info("Sending '" + kvmsg.getStatus().name() + "' request with {key='" + kvmsg.getKey() + "'; value='" +
-                kvmsg.getValue() + "'} to server '" + address + "'.");
-        KVMessageRaw    reply = this.getConnection(address).processRequest(kvmsg);
-        
         if (reply.getStatus() == KVMessage.StatusType.SERVER_NOT_RESPONSIBLE) {
-            logger.info("Server '" + address + "' is not responsible for key '" + kvmsg.getKey() + "' (having hash='" +
-                    HashValue.hashKey(kvmsg.getKey()) + "'). Updating metadata.");
+            logger.info("Server '" + connection.server_address + "' is not responsible for key '" + kvmsg.getKey() +
+                    "' (having hash='" + HashValue.hashKey(kvmsg.getKey()) + "'). Updating metadata.");
             this.meta_data = reply.getMetaData();
             logger.debug("Metadata: \n" + this.meta_data);
             reply = this.processRequest(kvmsg);
         } else {
             logger.info("Received reply '" + reply.getStatus().name() + "' with {key='" + reply.getKey() + "'; value='" +
-                    reply.getValue() + "'} from server '" + address + "'.");
+                    reply.getValue() + "'} from server '" + connection.server_address + "'.");
         }
         
         return reply;

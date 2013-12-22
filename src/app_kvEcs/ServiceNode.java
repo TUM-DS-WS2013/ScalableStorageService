@@ -30,15 +30,17 @@ public class ServiceNode {
     
     private final String        name;
     private final ServerAddress server_address;
+    private final String        path_to_jar;
     
     private boolean         connected;
     private Socket          socket;
     private InputStream     input_stream;
     private OutputStream    output_stream;
 
-    public ServiceNode(String name, ServerAddress server_address) {
+    public ServiceNode(String name, ServerAddress server_address, String path_to_jar) {
         this.name = name;
         this.server_address = server_address;
+        this.path_to_jar = path_to_jar;
         
         this.connected = false;
         this.socket = null;
@@ -46,9 +48,10 @@ public class ServiceNode {
         this.output_stream = null;
     }
     
-    public ServiceNode(String name, String address, int port) {
+    public ServiceNode(String name, String address, int port, String path_to_jar) {
         this.name = name;
         this.server_address = new ServerAddress(address, port);
+        this.path_to_jar = path_to_jar;
         
         this.connected = false;
         this.socket = null;
@@ -74,8 +77,7 @@ public class ServiceNode {
         launch_command.add("nohup");
         launch_command.add("java");
         launch_command.add("-jar");
-        // TODO: Provide normal path here!
-        launch_command.add("/tmp/ds_ms_3/ms3-server.jar");
+        launch_command.add(this.path_to_jar);
         launch_command.add("-l");
         launch_command.add(log_level.toString());
         launch_command.add(Integer.toString(this.server_address.getPort()));
@@ -229,13 +231,14 @@ public class ServiceNode {
     public static List<ServiceNode> parseServiceNodesFromFile(String config_path) throws ParseException, IOException {
         BufferedReader      reader = new BufferedReader(new FileReader(config_path));
         String              string = reader.readLine();
-        Pattern             node_descr_pattern = Pattern.compile("([_a-zA-Z0-9]+)\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\\s+(\\d{1,5})");
+        Pattern             node_descr_pattern = Pattern.compile(
+                "([_a-zA-Z0-9]+)\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})\\s+(\\d{1,5})\\s+(\\S+)");
         List<ServiceNode>   nodes = new ArrayList<ServiceNode>();
         
         while (string != null) {
             string = string.trim();
             
-            if (string.length() > 0) {
+            if ((string.length() > 0) && !string.startsWith("#")) {
                 Matcher matcher = node_descr_pattern.matcher(string);
                 
                 if (!matcher.matches()) {
@@ -252,7 +255,7 @@ public class ServiceNode {
                     throw new ParseException("Illegal port number in configurational file: '" + string + "'", 0);
                 }
                 
-                nodes.add(new ServiceNode(matcher.group(1), ip_address, port));
+                nodes.add(new ServiceNode(matcher.group(1), ip_address, port, matcher.group(4)));
             }
             
             string = reader.readLine();

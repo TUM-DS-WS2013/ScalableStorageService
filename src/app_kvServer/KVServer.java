@@ -26,7 +26,7 @@ import server.DataTransferRequest;
 import server.KeyValuePacket;
 
 public class KVServer implements Runnable {
-    private enum ServerState {UNINITIALIZED, STOPPED, RUNNING, LOCKED};
+    private enum ServerState {UNINITIALIZED, STOPPED, RUNNING, LOCKED, DUMP_SERVER};
     
     private static final Logger logger = LogSetup.getLogger();
     private final int           port;
@@ -169,6 +169,13 @@ public class KVServer implements Runnable {
         this.state = ServerState.RUNNING;
     }
     
+    public void startDumpServer() throws IllegalStateException {
+        if (this.state != ServerState.UNINITIALIZED) {
+            throw new IllegalStateException("Cannot start server: illegal switch from state '" + this.state + "'.");
+        }
+        this.state = ServerState.DUMP_SERVER;
+    }
+    
     public void stop() throws IllegalStateException {
         if (this.state != ServerState.RUNNING) {
             throw new IllegalStateException("Cannot stop server: illegal switch from state '" + this.state + "'.");
@@ -268,7 +275,7 @@ public class KVServer implements Runnable {
     }
     
     public void acceptTransferredData(KeyValuePacket packet) throws IllegalStateException {
-        if (this.state != ServerState.RUNNING) {
+        if ((this.state != ServerState.RUNNING) && (this.state != ServerState.DUMP_SERVER)) {
             throw new IllegalStateException("Cannot receive data while not in a 'RUNNING' state. Current state: '" 
                     + this.state + "'.");
         }

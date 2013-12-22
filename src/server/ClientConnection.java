@@ -159,7 +159,7 @@ public class ClientConnection implements Runnable {
             return_type = StatusType.PROTOCOL_ERROR;
             return_value = "Message type '" + type + "' is not a valid request.";
             
-        } else if (type == StatusType.GET && this.master.isStopped()) {
+        } else if (this.master.isStopped()) {
             return_type = StatusType.SERVER_STOPPED;
             return_value = "Server is currently stopped. All read and write operations are rejected.";
             
